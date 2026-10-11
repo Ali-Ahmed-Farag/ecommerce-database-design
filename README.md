@@ -97,15 +97,25 @@ docker compose up -d
 
 ### 5. Create tables and constraints
 
+Run the DDL files against the Docker container. The DDL must run **before** the seed script — `pandas.to_sql` will silently create TEXT-only columns if the tables don't already exist.
+
+Windows PowerShell:
+
+```powershell
+Get-Content sql/01_create_tables.sql | docker exec -i ecommerce_postgres psql -U postgres -d ecommerce
+Get-Content sql/02_constraints_indexes.sql | docker exec -i ecommerce_postgres psql -U postgres -d ecommerce
+```
+
+Bash equivalent:
+
 ```bash
-# Run against your PostgreSQL instance
-psql -U postgres -d ecommerce -f sql/01_create_tables.sql
-psql -U postgres -d ecommerce -f sql/02_constraints_indexes.sql
+docker exec -i ecommerce_postgres psql -U postgres -d ecommerce < sql/01_create_tables.sql
+docker exec -i ecommerce_postgres psql -U postgres -d ecommerce < sql/02_constraints_indexes.sql
 ```
 
 ### 6. Load the Olist dataset
 
-Download the dataset from Kaggle and place CSV files in `data/`.
+Download the dataset from Kaggle and place CSV files in `data/`. The seed script connects to `127.0.0.1:5433` (host port mapped to the container). It is a one-time load and is **not** idempotent — do not re-run it without clearing the tables first.
 
 ```bash
 python scripts/one_time_seed.py
@@ -121,15 +131,20 @@ Joins customers, orders, order_items, products, and sellers to show complete ord
 ### 2. Monthly Revenue Trend (CTE)
 ```sql
 WITH monthly_revenue AS (
-    SELECT DATE_TRUNC('month', order_purchase_timestamp) AS order_month,
-           SUM(price) AS total_revenue
-    FROM production.orders
-    JOIN production.order_items USING (order_id)
-    GROUP BY 1
+    SELECT
+        DATE_TRUNC('month', o.order_purchase_timestamp) AS order_month,
+        SUM(oi.price) AS total_revenue
+    FROM production.orders o
+    JOIN production.order_items oi ON o.order_id = oi.order_id
+    GROUP BY DATE_TRUNC('month', o.order_purchase_timestamp)
 )
-SELECT * FROM monthly_revenue ORDER BY order_month;
+SELECT
+    order_month,
+    total_revenue
+FROM monthly_revenue
+ORDER BY order_month;
 ```
-Result: Revenue grew from ~R$267 in Sep 2016 to over R$1M/month by late 2017.
+Result: Revenue was R$267.36 in Sep 2016 and peaked at R$1,010,271.37 in Nov 2017 — the only month in the dataset that exceeded R$1M.
 
 ### 3. Top Product per Category (Window Function)
 Uses `RANK() OVER (PARTITION BY product_category_name ...)` to find the best-selling product in each category.
