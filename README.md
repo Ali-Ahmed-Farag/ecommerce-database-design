@@ -152,12 +152,18 @@ Uses `RANK() OVER (PARTITION BY product_category_name ...)` to find the best-sel
 ### 4. Delivery Performance by State (Business Question)
 Answers: *"Which states have the worst delivery performance vs. estimated date?"*
 
-| State | Avg Delivery Days | Avg Delay Days |
-|---|---|---|
-| AL | 24.0 | -7.9 |
-| SP | 8.3 | -10.1 |
+The query returns all 27 states ordered by average delay vs. the estimated date (worst first). The 5 worst, plus São Paulo as a reference row:
 
-São Paulo (SP) has the fastest delivery (8.3 days). All states delivered ahead of estimated dates on average (negative delay = early delivery).
+| State | Delivered Orders | Avg Delivery Days | Avg Delay Days |
+|---|---|---|---|
+| AL | 397 | 24.0 | -7.9 |
+| MA | 717 | 21.1 | -8.8 |
+| SE | 335 | 21.0 | -9.2 |
+| ES | 1,995 | 15.3 | -9.6 |
+| BA | 3,256 | 18.9 | -9.9 |
+| SP (reference) | 40,495 | 8.3 | -10.1 |
+
+Alagoas (AL) has the worst delay relative to its estimated date, but even there deliveries arrive 7.9 days early on average: all 27 states delivered ahead of the estimate (negative delay = early). São Paulo (SP) has the lowest average delivery time (8.3 days) of all states, while ranking 7th of 27 on delay vs. estimate. Averages use EXTRACT(DAY FROM interval), i.e. the whole-day part of each interval, so they differ slightly from fractional-day figures in Project 3.
 
 ## Key Design Decisions
 
